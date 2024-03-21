@@ -588,6 +588,9 @@ void ZygiskContext::app_specialize_pre() {
         LOGI("current uid %d is manager!", g_ctx->args.app->uid);
         setenv("ZYGISK_ENABLED", "1", 1);
     } else {
+      if ((info_flags & PROCESS_ON_DENYLIST) == PROCESS_ON_DENYLIST) {
+          flags[DO_REVERT_UNMOUNT] = true;
+      }
         run_modules_pre();
     }
 }
