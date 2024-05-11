@@ -1,3 +1,6 @@
 [submodule "loader/src/external/lsplt"]
 	path = loader/src/external/lsplt
 	url = https://github.com/LSPosed/lsplt
+[submodule "loader/src/external/_xDL"]
+	path = loader/src/external/_xDL
+	url = https://github.com/hexhacking/xDL.git

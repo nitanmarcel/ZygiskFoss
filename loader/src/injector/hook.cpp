@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 #include "dl.h"
 #include "daemon.h"
@@ -21,6 +22,8 @@
 #include "module.hpp"
 #include "files.hpp"
 #include "misc.hpp"
+
+#include "solist.hpp"
 
 #include "art_method.hpp"
 
@@ -38,7 +41,7 @@ enum {
     SERVER_FORK_AND_SPECIALIZE,
     DO_REVERT_UNMOUNT,
     SKIP_FD_SANITIZATION,
-
+    DO_FUTILE_HIDE,
     FLAG_MAX
 };
 
@@ -566,6 +569,26 @@ void ZygiskContext::run_modules_pre() {
             m.preServerSpecialize(args.server);
         }
     }
+
+    if (flags[DO_FUTILE_HIDE]) {
+        // Remove from maps to avoid detection
+        for (auto &info : lsplt::MapInfo::Scan()) {
+            if (strstr(info.path.data(), "/memfd:jit-zygisk-cache") == nullptr &&
+                strstr(info.path.data(), "/modules/") == nullptr)
+                continue;
+            LOGD("hide_remap: addr=[%p-%p]\n", 
+                info.start, info.end, info.dev, info.inode, info.path.data());
+            void *addr = reinterpret_cast<void *>(info.start);
+            size_t size = info.end - info.start;
+            void *copy = mmap(nullptr, size, PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+            if ((info.perms & PROT_READ) == 0) {
+                mprotect(addr, size, PROT_READ);
+            }
+            memcpy(copy, addr, size);
+            mremap(copy, size, size, MREMAP_MAYMOVE | MREMAP_FIXED, addr);
+            mprotect(addr, size, info.perms);
+        }
+    }
 }
 
 void ZygiskContext::run_modules_post() {
@@ -578,6 +601,10 @@ void ZygiskContext::run_modules_post() {
         }
         m.tryUnload();
     }
+    if (flags[DO_FUTILE_HIDE] && SoList::Initialize()) {
+        SoList::NullifySoName("/memfd:jit-zygisk-cache");
+        SoList::NullifySoName("/modules/");
+    }
 }
 
 /* Zygisksu changed: Load module fds */
@@ -588,8 +615,10 @@ void ZygiskContext::app_specialize_pre() {
         LOGI("current uid %d is manager!", g_ctx->args.app->uid);
         setenv("ZYGISK_ENABLED", "1", 1);
     } else {
+      flags[DO_FUTILE_HIDE] = (args.app->uid % 100000) >= 10000;
       if ((info_flags & PROCESS_ON_DENYLIST) == PROCESS_ON_DENYLIST) {
           flags[DO_REVERT_UNMOUNT] = true;
+          flags[DO_FUTILE_HIDE] = (args.app->uid % 100000) >= 10000;
       }
         run_modules_pre();
     }
