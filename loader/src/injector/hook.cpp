@@ -21,7 +21,6 @@
 #include "module.hpp"
 #include "files.hpp"
 #include "misc.hpp"
-#include "solist.hpp"
 
 #include "art_method.hpp"
 
@@ -557,14 +556,6 @@ void ZygiskContext::run_modules_pre() {
             void* entry = handle ? dlsym(handle, "zygisk_module_entry") : nullptr) {
             modules.emplace_back(i, handle, entry);
         }
-    }
-
-    // Remove from SoList to avoid detection
-    bool solist_res = SoList::Initialize();
-    if (!solist_res) {
-        LOGE("Failed to initialize SoList\n");
-    } else {
-        SoList::NullifySoName("jit-cache");
     }
 
     for (auto &m : modules) {
