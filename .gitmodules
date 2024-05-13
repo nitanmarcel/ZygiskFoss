@@ -4,3 +4,6 @@
 [submodule "loader/src/external/_xDL"]
 	path = loader/src/external/_xDL
 	url = https://github.com/hexhacking/xDL.git
+[submodule "loader/src/external/parallel-hashmap"]
+	path = loader/src/external/parallel-hashmap
+	url = https://github.com/greg7mdp/parallel-hashmap
